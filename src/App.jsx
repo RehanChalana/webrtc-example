@@ -6,7 +6,8 @@ function App() {
   
   const [msgInput, setMsgInput] = useState("")
   const [messages,setMessages] = useState([])
-  const [offered,setOffered] = useState(false)
+  const [isInitiator, setIsInitiator] = useState(false)
+  const [isConnected, setIsConnected] = useState(false)
   const socketRef = useRef(null)
   const pcRef = useRef(null)
   const chatChannelRef = useRef(null)
@@ -17,37 +18,45 @@ function App() {
 
 
   const enableMedia = async() => {
-    let stream = await navigator.mediaDevices.getUserMedia({'video':true,'audio':true})
-    localVideoRef.current.srcObject = stream
-
-    return stream
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({'video':true,'audio':true})
+      localVideoRef.current.srcObject = stream
+      return stream
+    } catch(error) {
+      console.error("Error accessing media devices: ", error)
+    }
   }
 
-
   const connectToSignalingServer = () => {
-    let ws = new WebSocket('ws://localhost:8080/ws/signaling')
-    ws.onopen = (e) => console.log("Connected to the signaling server")
+    let ws = new WebSocket('ws://00b5-152-59-84-79.ngrok-free.app/ws/signaling')
+    ws.onopen = () => console.log("Connected to the signaling server")
     ws.onerror = (e) => console.error("Web socket error: ", e)
-    ws.onclose = (e) => console.log("Web socket connection is closed")
+    ws.onclose = () => console.log("Web socket connection is closed")
 
 
-    ws.onmessage = (msg) => {
-
-      console.log(msg)
+    ws.onmessage = async(msg) => {
       let message = JSON.parse(msg.data)
+      console.log(message)
 
       switch(message.type) {
         case "offer": 
-          if(message.peerId !== peerIdRef.current) handleOffer(message.sdp)
+          if(message.peerId !== peerIdRef.current && !isConnected) {
+            await handleOffer(message.sdp)
+          }
           break
         case "answer":
-          if(peerIdRef.current !== message.peerId) handleAnswer(message.sdp)
+          if(peerIdRef.current !== message.peerId) {
+            await handleAnswer(message.sdp)
+          }
           break
         case "candidate":
           if(peerIdRef.current !== message.peerId && pcRef.current ) {
-            const candidate = new RTCIceCandidate(message.candidate)
-            console.log(pcRef.current)
-            pcRef.current.addIceCandidate(candidate)
+            try {
+              const candidate = new RTCIceCandidate(message.candidate)
+              await pcRef.current.addIceCandidate(candidate)
+            } catch(error) {
+              console.error("Error adding ice candidate: ", error)
+            }
           }
           break
         default :
@@ -59,113 +68,91 @@ function App() {
     socketRef.current = ws
   }
 
-  const handleOffer = async(offerSDP) => {
-
+  const createPeerConnection = async() => {
     const stream = await enableMedia()
-    let pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' }
-      ]
+
+    const pc = new RTCPeerConnection({
+      iceServers: [ { urls: 'stun:stun.l.google.com:19302' }]
     })
 
-    pcRef.current = pc
-
-    pc.ontrack = (event) => {
-      const [remoteStream] = event.streams
+    pc.ontrack = (e) => {
+      const [remoteStream] = e.streams
       remoteVideoRef.current.srcObject = remoteStream
     }
 
-    stream.getTracks().forEach(track => {
+    stream.getTracks().forEach((track) => {
       pc.addTrack(track,stream)
     })
 
-    await pc.setRemoteDescription(new RTCSessionDescription(offerSDP))
-
-   
-    pc.ondatachannel = (e) => {
-      let cc = e.channel
-      chatChannelRef.current = cc
-      
-      cc.onopen = (e) => console.log("Data channel opened")
-      cc.onmessage = (m) => {
-        setMessages((prevMessages) => [...prevMessages,m.data])
-      }
-      cc.onclose = (e) => console.log("Chat channel closed")
-    }
-
-    const answer = await pc.createAnswer()
-    await pc.setLocalDescription(answer)
-
-    socketRef.current.send(JSON.stringify({type : "answer", sdp: answer, peerId: peerIdRef.current}))
-
-    
-
-    console.log("offer received! sending answer")
-
     pc.onicecandidate = (event) => {
-      if(event.candidate) {
-        socketRef.current.send(JSON.stringify({type: "candidate", candidate: event.candidate, peerId: peerIdRef.current}))
+      socketRef.current.send({type : "candidate", candidate : event.candidate, peerId : peerIdRef.current})
+    }
+
+    pc.onconnectionstatechange = () => {
+      if(pc.connectionState === "connected") {
+        setIsConnected(true)
       }
     }
-    
+
+    return pc
+  }
+
+  const handleOffer = async(offerSDP) => {
+    try {
+      const pc = await createPeerConnection()
+      pcRef.current = pc
+
+      pc.ondatachannel = (e) => {
+        let cc = e.channel
+        chatChannelRef.current = cc
+        cc.onopen = (e) => console.log("Data channel opened")
+        cc.onmessage = (m) => {
+          setMessages((prevMessages) => [...prevMessages,m.data])
+        }
+        cc.onclose = (e) => console.log("Chat channel closed")
+      }
+
+      await pc.setRemoteDescription(new RTCSessionDescription(offerSDP))
+
+      const answer = await pc.createAnswer()
+      await pc.setLocalDescription(answer)
+
+      socketRef.current.send(JSON.stringify({type : "answer", sdp: answer, peerId: peerIdRef.current}))
+
+      console.log("offer received and answer sent!")
+    } catch(error) {
+      console.error("Error handling the offer")
+    }
   }
 
   const handleAnswer = async(answerSDP) => {
-    if(!pcRef.current) {
-      console.log("answer received before sending an offer")
-      return
-    }
-
-
-    pcRef.current.onicecandidate = (event) => {
-      if(event.candidate) {
-        socketRef.current.send(JSON.stringify({
-          type : "candidate",
-          candidate: event.candidate,
-          peerId: peerIdRef.current
-        }))
-      }
-    }
-
+    
     try {
-      if (pcRef.current.signalingState === "have-local-offer") {
-        await pcRef.current.setRemoteDescription(new RTCSessionDescription(answerSDP));
-        console.log("Answer received!");
-        console.log(pcRef.current.connectionState)
-      } else {
-        console.log("Invalid signaling state for setting remote description:", pcRef.current.signalingState);
+      if(!pcRef.current) {
+        console.error("no peer connection exists")
+        return
       }
+      await setRemoteDescription(new RTCSessionDescription(answerSDP))
     } catch(error) {
       console.error("Error on receiving answer: ", error)
     }
-
-
   }
 
 
   const sendOffer = async() => {
     try {
-      if(offered) return
-
-      const stream = await enableMedia()
-
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' }
-        ]
-      })
-
-      // adding media tracks to the RTC peer connection
-      stream.getTracks().forEach(track => {
-        pc.addTrack(track,stream)
-      })
-
-      pc.ontrack = (event) => {
-        const [remoteStream] = event.streams
-        remoteVideoRef.current.srcObject = remoteStream
+      if(isConnected) {
+        console.log("Already Connected")
+        return
       }
 
+      setIsInitiator(true)
+
+      const pc = await createPeerConnection()
+      pcRef.current = pc
+
       const cc = pc.createDataChannel("channel")
+      chatChannelRef.current = cc
 
       cc.onmessage = (msg) => {
         setMessages((prevMessages) => [...prevMessages,msg.data])
@@ -179,11 +166,6 @@ function App() {
       socketRef.current.send(JSON.stringify({type: "offer", sdp: offer, peerId: peerIdRef.current}))
 
       
-      
-
-      chatChannelRef.current = cc
-      pcRef.current = pc
-      setOffered(true)
       console.log("offer sent!")
       
     } catch(error) {

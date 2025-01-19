@@ -85,7 +85,7 @@ function App() {
     })
 
     pc.onicecandidate = (event) => {
-      socketRef.current.send({type : "candidate", candidate : event.candidate, peerId : peerIdRef.current})
+      socketRef.current.send(JSON.stringify({type : "candidate", candidate : event.candidate, peerId : peerIdRef.current}))
     }
 
     pc.onconnectionstatechange = () => {
@@ -126,13 +126,12 @@ function App() {
   }
 
   const handleAnswer = async(answerSDP) => {
-    
     try {
       if(!pcRef.current) {
         console.error("no peer connection exists")
         return
       }
-      await setRemoteDescription(new RTCSessionDescription(answerSDP))
+      await pcRef.current.setRemoteDescription(new RTCSessionDescription(answerSDP))
     } catch(error) {
       console.error("Error on receiving answer: ", error)
     }

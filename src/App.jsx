@@ -27,7 +27,7 @@ function App() {
   }
 
   const connectToSignalingServer = () => {
-    let ws = new WebSocket('ws://00b5-152-59-84-79.ngrok-free.app/ws/signaling')
+    let ws = new WebSocket('wss://00b5-152-59-84-79.ngrok-free.app/ws/signaling')
     ws.onopen = () => console.log("Connected to the signaling server")
     ws.onerror = (e) => console.error("Web socket error: ", e)
     ws.onclose = () => console.log("Web socket connection is closed")

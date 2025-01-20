@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import "./app.css"
 
 
 function App() {
@@ -190,20 +189,32 @@ function App() {
   
 
   return (
-    <div className="app">
-      <h1>Web RTC demo</h1>
-      <h1>Chat Log</h1>
+    <div className="app bg-[#1A1A1A] h-screen text-[#d9d9d9] flex flex-col items-center justify-around">
+
+      <div className=''>
+        <h1 className='font-semibold text-5xl p-4'>Web RTC demo</h1>
+      </div>
+
+      <div className=' w-screen p-4 flex gap-2 justify-center '>
+          <video autoPlay playsInline muted ref={localVideoRef} className='border-2 h-80 max-w-[28rem] flex-1'></video>
+          <video autoPlay playsInline ref={remoteVideoRef} className='border-2 h-80  max-w-[28rem] flex-1 '></video>
+      </div>
+
+      <div className='border-2 p-2 mt-4 font-semibold text-xl rounded-xl hover:bg-white hover:text-[#1A1A1A]'>
+          <button onClick={sendOffer}>Start Call</button>
+      </div>
+      
+      
+      
+
+      {/* <label>Send a message</label> */}
+      {/* <h1>Chat Log</h1>
       {messages.map((m) => {
         return <div>{m}</div>
-      })}
+      })} */}
+      {/* <input type="text" onChange={(e) => setMsgInput(e.target.value)} value={msgInput}></input>
+      <button onClick={sendMessage}>send a message</button> */}
 
-      <label>Send a message</label>
-      <input type="text" onChange={(e) => setMsgInput(e.target.value)} value={msgInput}></input>
-      <button onClick={sendMessage}>send a message</button>
-
-      <video autoPlay playsInline muted ref={localVideoRef}></video>
-      <video autoPlay playsInline ref={remoteVideoRef}></video>
-      <button onClick={sendOffer}>Send Offer</button>
     </div>
   )
 }

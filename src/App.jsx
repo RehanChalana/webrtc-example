@@ -84,7 +84,9 @@ function App() {
     })
 
     pc.onicecandidate = (event) => {
+      if(event.candidate) {
       socketRef.current.send(JSON.stringify({type : "candidate", candidate : event.candidate, peerId : peerIdRef.current}))
+      }
     }
 
     pc.onconnectionstatechange = () => {
@@ -100,16 +102,6 @@ function App() {
     try {
       const pc = await createPeerConnection()
       pcRef.current = pc
-
-      pc.ondatachannel = (e) => {
-        let cc = e.channel
-        chatChannelRef.current = cc
-        cc.onopen = (e) => console.log("Data channel opened")
-        cc.onmessage = (m) => {
-          setMessages((prevMessages) => [...prevMessages,m.data])
-        }
-        cc.onclose = (e) => console.log("Chat channel closed")
-      }
 
       await pc.setRemoteDescription(new RTCSessionDescription(offerSDP))
 
@@ -149,21 +141,12 @@ function App() {
       const pc = await createPeerConnection()
       pcRef.current = pc
 
-      const cc = pc.createDataChannel("channel")
-      chatChannelRef.current = cc
-
-      cc.onmessage = (msg) => {
-        setMessages((prevMessages) => [...prevMessages,msg.data])
-      }
-
-      cc.onopen = (e) => console.log("Chat Channel opened!")
-
       const offer = await pc.createOffer()
       await pc.setLocalDescription(offer)
 
       socketRef.current.send(JSON.stringify({type: "offer", sdp: offer, peerId: peerIdRef.current}))
 
-      
+
       console.log("offer sent!")
       
     } catch(error) {

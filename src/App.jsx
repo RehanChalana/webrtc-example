@@ -70,8 +70,26 @@ function App() {
   const createPeerConnection = async() => {
     const stream = await enableMedia()
 
+    
+
+
+
+
+
     const pc = new RTCPeerConnection({
-      iceServers: [ { urls: 'stun:stun.l.google.com:19302' }]
+      iceServers: [ 
+      { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun.l.google.com:5349" },
+    { urls: "stun:stun1.l.google.com:3478" },
+    { urls: "stun:stun1.l.google.com:5349" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:5349" },
+    { urls: "stun:stun3.l.google.com:3478" },
+    { urls: "stun:stun3.l.google.com:5349" },
+    { urls: "stun:stun4.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:5349" }
+      
+      ]
     })
 
     pc.ontrack = (e) => {
@@ -123,6 +141,7 @@ function App() {
         return
       }
       await pcRef.current.setRemoteDescription(new RTCSessionDescription(answerSDP))
+      console.log("answer received")
     } catch(error) {
       console.error("Error on receiving answer: ", error)
     }

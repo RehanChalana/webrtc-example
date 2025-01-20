@@ -13,8 +13,8 @@ function App() {
   const peerIdRef = useRef(Math.random().toString(36).substring(2, 15));
   const localVideoRef = useRef(null)
   const remoteVideoRef = useRef(null)
-
-
+  const turnServerUsername = import.meta.env.VITE_TURN_SERVER_USERNAME
+  const turnServerPassword = import.meta.env.VITE_TURN_SERVER_PASSWORD
 
   const enableMedia = async() => {
     try {
@@ -27,7 +27,8 @@ function App() {
   }
 
   const connectToSignalingServer = () => {
-    let ws = new WebSocket('wss://00b5-152-59-84-79.ngrok-free.app/ws/signaling')
+    const signalingServerUrl = import.meta.env.VITE_SIGNALING_SERVER
+    let ws = new WebSocket(signalingServerUrl)
     ws.onopen = () => console.log("Connected to the signaling server")
     ws.onerror = (e) => console.error("Web socket error: ", e)
     ws.onclose = () => console.log("Web socket connection is closed")
@@ -69,25 +70,39 @@ function App() {
 
   const createPeerConnection = async() => {
     const stream = await enableMedia()
-
-    
-
-
-
-
-
     const pc = new RTCPeerConnection({
       iceServers: [ 
       { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun.l.google.com:5349" },
-    { urls: "stun:stun1.l.google.com:3478" },
-    { urls: "stun:stun1.l.google.com:5349" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:5349" },
-    { urls: "stun:stun3.l.google.com:3478" },
-    { urls: "stun:stun3.l.google.com:5349" },
-    { urls: "stun:stun4.l.google.com:19302" },
-    { urls: "stun:stun4.l.google.com:5349" }
+      { urls: "stun:stun.l.google.com:5349" },
+      { urls: "stun:stun1.l.google.com:3478" },
+      { urls: "stun:stun1.l.google.com:5349" },
+      { urls: "stun:stun2.l.google.com:19302" },
+      { urls: "stun:stun2.l.google.com:5349" },
+      { urls: "stun:stun3.l.google.com:3478" },
+      { urls: "stun:stun3.l.google.com:5349" },
+      { urls: "stun:stun4.l.google.com:19302" },
+      { urls: "stun:stun4.l.google.com:5349" },
+      {urls: "stun:stun.relay.metered.ca:80"},
+      {
+        urls: "turn:global.relay.metered.ca:80",
+        username: turnServerUsername,
+        credential: turnServerPassword,
+      },
+      {
+        urls: "turn:global.relay.metered.ca:80?transport=tcp",
+        username: turnServerUsername,
+        credential: turnServerPassword,
+      },
+      {
+        urls: "turn:global.relay.metered.ca:443",
+        username: turnServerUsername,
+        credential: turnServerPassword,
+      },
+      {
+        urls: "turns:global.relay.metered.ca:443?transport=tcp",
+        username: turnServerUsername,
+        credential: turnServerPassword,
+      },
       
       ]
     })

@@ -18,7 +18,23 @@ function App() {
 
   const enableMedia = async() => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({'video':true,'audio':true})
+
+      const mediaConstraints = {
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30, max: 60 }, 
+          facingMode: "user" 
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      }
+
+
+      const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints)
       localVideoRef.current.srcObject = stream
       return stream
     } catch(error) {
